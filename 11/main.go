@@ -39,6 +39,10 @@ func muteStonesBlinks(stone int, blinks int) int {
 		return result
 	}
 	for i := range blinks {
+		if result, ok := memoBlinks[[2]int{stone, blinks - i}]; ok {
+			totalLength += result
+			break
+		}
 		if stone == 0 {
 			stone = 1
 		} else if stoneDigits := numberDigits(stone); stoneDigits%2 == 0 {
