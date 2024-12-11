@@ -19,8 +19,36 @@ type Node struct {
 }
 
 type LinkedList struct {
-	head *Node
-	tail *Node
+	head   *Node
+	tail   *Node
+	length int
+}
+
+func (l *LinkedList) InsertAfter(current *Node, value int) *Node {
+	newNode := &Node{value: value}
+	if current == nil {
+		l.head = newNode
+		l.tail = newNode
+		return newNode
+	}
+	newNode.next = current.next
+	newNode.prev = current
+	if current.next != nil {
+		current.next.prev = newNode
+	}
+	current.next = newNode
+	if current == l.tail {
+		l.tail = newNode
+	}
+	l.length++
+	return newNode
+}
+
+func (l *LinkedList) Display() {
+	for current := l.head; current != nil; current = current.next {
+		fmt.Print(current.value, " ")
+	}
+	fmt.Println()
 }
 
 func numberDigits(x int) int {
@@ -90,6 +118,32 @@ func muteStonesNoRecursive(stoneList []int) []int {
 	return newStones
 }
 
+func muteStonesNoRecursiveLL(stones *LinkedList) {
+	justInserted := false
+	for stone := stones.head; stone != nil; stone = stone.next {
+		if justInserted {
+			justInserted = false
+			continue
+		}
+		stoneValue := stone.value
+		if stoneValue == 0 {
+			stone.value = 1
+		} else if stoneDigits := numberDigits(stoneValue); stoneDigits%2 == 0 {
+			tenPower := 1
+			for range stoneDigits / 2 {
+				tenPower *= 10
+			}
+			upperDigits := stoneValue / tenPower
+			lowerDigits := stoneValue - upperDigits*tenPower
+			stone.value = upperDigits
+			stones.InsertAfter(stone, lowerDigits)
+			justInserted = true
+		} else {
+			stone.value = stoneValue * 2024
+		}
+	}
+}
+
 func sumList(x []int) int {
 	acc := 0
 	for y := range x {
@@ -100,7 +154,7 @@ func sumList(x []int) int {
 }
 
 func main() {
-	file, err := os.Open("test2")
+	file, err := os.Open("input")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -120,10 +174,17 @@ func main() {
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
 	}
+
+	stonesLL := &LinkedList{}
+	for _, stone := range stones {
+		stonesLL.InsertAfter(stonesLL.tail, stone)
+	}
+	stonesLL.Display()
 	for i := range 75 {
 		// stones = muteStones(stones, 0)
-		stones = muteStonesNoRecursive(stones)
-		fmt.Println(i, len(stones))
+		// stones = muteStonesNoRecursive(stones)
+		muteStonesNoRecursiveLL(stonesLL)
+		fmt.Println(i, stonesLL.length)
 	}
-	fmt.Println(len(stones))
+	fmt.Println(stonesLL.length)
 }
