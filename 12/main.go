@@ -48,6 +48,24 @@ func walk(gameMap [][]rune, bounds [2]int, i int, j int, visitedPositions [][]bo
 	return [2]int{area, perimeter}
 }
 
+func calcSides(region [][]bool) int {
+	sides := 0
+	initialPosition := [2]int{}
+	for i, row := range region {
+		for j, val := range row {
+			if val {
+				initialPosition = [2]int{i, j}
+				break
+			}
+		}
+	}
+	direction := [2]int{0, 1}
+	upDirection := [2]int{1, 0}
+	for {
+		if initialPosition[0] + direction[0]
+	}
+}
+
 func main() {
 	file, err := os.Open("input")
 	if err != nil {
@@ -85,15 +103,17 @@ func main() {
 
 	totalCost := 0
 	uuidRegion := 0
-	regions := make(map[int][][2]int)
 
 	for i := range gameHeight {
 		for j := range gameWidth {
 			if !visitedPositions[i][j] {
-				onVisit := func(i int, j int) {
-					regions[uuidRegion] = append(regions[uuidRegion], [2]int{i, j})
+				region := make([][]bool, gameHeight)
+				for range gameHeight {
+					region = append(region, make([]int, gameWidth))
 				}
-				regions[uuidRegion] = make([][2]int, 0)
+				onVisit := func(i int, j int) {
+					region[i][j] = true
+				}
 				result := walk(gameMap, bounds, i, j, visitedPositions, onVisit)
 				totalCost += result[0] * result[1]
 				uuidRegion++
