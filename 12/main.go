@@ -48,22 +48,123 @@ func walk(gameMap [][]rune, bounds [2]int, i int, j int, visitedPositions [][]bo
 	return [2]int{area, perimeter}
 }
 
-func calcSides(region [][]bool) int {
+type Vector struct {
+	x int
+	y int
+}
+
+func checkInBounds(X Vector, bounds Vector) bool {
+	return X.x >= 0 && X.x < bounds.x && X.y >= 0 && X.y < bounds.y
+}
+
+func (X Vector) Equals(Y Vector) bool {
+	return X.x == Y.x && X.y == Y.y
+}
+
+func (X Vector) Add(Y Vector) Vector {
+	return Vector{X.x + Y.x, X.y + Y.y}
+}
+
+func (X Vector) Revert() Vector {
+	return Vector{-X.x, -X.y}
+}
+
+func (X Vector) Dot(Y Vector) int {
+	return X.x*Y.y + X.y*Y.y
+}
+
+func (X Vector) Orientation(Y Vector) int {
+	product := X.x*Y.y + X.y*Y.x
+	if product > 0 {
+		return 1
+	} else if product == 0 {
+		return 0
+	} else {
+		return -1
+	}
+}
+
+func (X Vector) Rotate() Vector {
+	return Vector{-X.y, X.x}
+}
+
+func (X Vector) RotateInverse() Vector {
+	return Vector{X.y, -X.x}
+}
+
+func calcSides(region [][]bool, bounds [2]int) int {
 	sides := 0
-	initialPosition := [2]int{}
+	initialPosition := Vector{}
+out:
 	for i, row := range region {
 		for j, val := range row {
 			if val {
-				initialPosition = [2]int{i, j}
-				break
+				initialPosition = Vector{i, j}
+				break out
 			}
 		}
 	}
-	direction := [2]int{0, 1}
-	upDirection := [2]int{1, 0}
-	for {
-		if initialPosition[0] + direction[0]
+	// Calculate initialDirection
+	occList := make([]Vector, 0)
+	i := initialPosition.x
+	j := initialPosition.y
+	if i+1 < bounds[0] {
+		if region[i+1][j] {
+			occList = append(occList, Vector{i + 1, j})
+		}
 	}
+	if j+1 < bounds[1] {
+		if region[i][j+1] {
+			occList = append(occList, Vector{i, j + 1})
+		}
+
+	}
+	if i-1 >= 0 {
+		if region[i-1][j] {
+			occList = append(occList, Vector{i - 1, j})
+		}
+	}
+	if j-1 >= 0 {
+		if region[i][j-1] {
+			occList = append(occList, Vector{i, j - 1})
+		}
+	}
+	if len(occList) == 0 {
+		return 4
+	}
+
+	firstDirection := occList[0].Add(initialPosition.Revert())
+	downDirection := Vector{}
+	if len(occList) == 1 {
+		downDirection = firstDirection.Rotate()
+	} else {
+		downDirection = occList[1].Add(initialPosition.Revert())
+	}
+
+	currentDirection := firstDirection
+	currentPosition := initialPosition
+	boundsVec := Vector{bounds[0], bounds[1]}
+	// TODO: It is easier if we convert from the center of the squares to a vertex approximation!
+	for {
+		nextPosition := currentPosition.Add(currentDirection)
+		if nextPosition.Equals(initialPosition) {
+			break
+		}
+		if !checkInBounds(nextPosition, boundsVec) || !region[nextPosition.x][nextPosition.y] {
+			newDownDirection := Vector{}
+			if currentDirection.Orientation(downDirection) == 1 {
+				newDownDirection = downDirection.Rotate()
+			} else {
+				newDownDirection = downDirection.RotateInverse()
+			}
+			currentDirection = downDirection
+			downDirection = newDownDirection
+			sides++
+			continue
+		}
+		currentPosition = nextPosition
+	}
+	return sides
 }
 
 func main() {
@@ -109,7 +210,7 @@ func main() {
 			if !visitedPositions[i][j] {
 				region := make([][]bool, gameHeight)
 				for range gameHeight {
-					region = append(region, make([]int, gameWidth))
+					region = append(region, make([]bool, gameWidth))
 				}
 				onVisit := func(i int, j int) {
 					region[i][j] = true
