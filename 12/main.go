@@ -110,55 +110,78 @@ func isBorderPosition(position Vector, positionList []Vector, bounds Vector) boo
 	return false
 }
 
-func walkBorder(initialPosition Vector, initialDirection Vector, isValidPosition func(Vector) bool, onWalkCallback func(Vector), onSteerCallback func(Vector)) {
+func walkBorder(initialPosition Vector, initialDirection Vector, isValidPosition func(Vector) bool, steerOrientationPositive bool, onWalkCallback func(Vector), onSteerCallback func(Vector)) {
 	onWalkCallback(initialPosition)
 	currentDirection := initialDirection
 	currentPosition := initialPosition
-	for {
-		if leftPos := currentPosition.Add(currentDirection.Rotate()); isValidPosition(leftPos) {
-			currentDirection = currentDirection.Rotate()
-			currentPosition = leftPos
-			onSteerCallback(currentPosition)
-		} else if frontPos := currentPosition.Add(currentDirection); isValidPosition(frontPos) {
-			currentPosition = frontPos
-		} else if rightPost := currentPosition.Add(currentDirection.RotateInverse()); isValidPosition(rightPost) {
-			currentDirection = currentDirection.RotateInverse()
-			currentPosition = rightPost
-			onSteerCallback(currentPosition)
-		} else {
-			break
+	if steerOrientationPositive {
+		for {
+			if leftPos := currentPosition.Add(currentDirection.Rotate()); isValidPosition(leftPos) {
+				currentDirection = currentDirection.Rotate()
+				currentPosition = leftPos
+				onSteerCallback(currentPosition)
+			} else if frontPos := currentPosition.Add(currentDirection); isValidPosition(frontPos) {
+				currentPosition = frontPos
+			} else if rightPost := currentPosition.Add(currentDirection.RotateInverse()); isValidPosition(rightPost) {
+				currentDirection = currentDirection.RotateInverse()
+				currentPosition = rightPost
+				onSteerCallback(currentPosition)
+			} else {
+				break
+			}
+			if currentPosition.Equals(initialPosition) {
+				break
+			}
+			onWalkCallback(currentPosition)
 		}
-		if currentPosition.Equals(initialPosition) {
-			break
-		}
-		onWalkCallback(currentPosition)
-	}
-}
 
-func isGoodOriented(position Vector, direction Vector, positionList []Vector, bounds Vector) bool {
-	emptyDirection := direction.Rotate()
-	emptyPosition := position.Add(emptyDirection)
-	if emptyPosition.x < 0 || emptyDirection.y < 0 || emptyPosition.x >= bounds.x || emptyPosition.y >= bounds.y || !emptyDirection.inList(positionList) {
-		return true
 	} else {
-		return false
+		for {
+			if leftPos := currentPosition.Add(currentDirection.RotateInverse()); isValidPosition(leftPos) {
+				currentDirection = currentDirection.RotateInverse()
+				currentPosition = leftPos
+				onSteerCallback(currentPosition)
+			} else if frontPos := currentPosition.Add(currentDirection); isValidPosition(frontPos) {
+				currentPosition = frontPos
+			} else if rightPost := currentPosition.Add(currentDirection.Rotate()); isValidPosition(rightPost) {
+				currentDirection = currentDirection.Rotate()
+				currentPosition = rightPost
+				onSteerCallback(currentPosition)
+			} else {
+				break
+			}
+			if currentPosition.Equals(initialPosition) {
+				break
+			}
+			onWalkCallback(currentPosition)
+		}
 	}
 }
 
 func findNewBorderDirection(positionList []Vector, position Vector, bounds Vector, borders []Vector, nonBorders []Vector) Vector {
-	if tempPos := position.Add(Vector{1, 0}); tempPos.x < bounds.x && !tempPos.inList(borders) && !tempPos.inList(nonBorders) && isBorderPosition(tempPos, positionList, bounds) && isGoodOriented(position, Vector{1, 0}, positionList, bounds) {
+	if tempPos := position.Add(Vector{1, 0}); tempPos.x < bounds.x && !tempPos.inList(borders) && !tempPos.inList(nonBorders) && isBorderPosition(tempPos, positionList, bounds) {
 		return Vector{1, 0}
 	}
-	if tempPos := position.Add(Vector{-1, 0}); tempPos.x >= 0 && !tempPos.inList(borders) && !tempPos.inList(nonBorders) && isBorderPosition(tempPos, positionList, bounds) && isGoodOriented(position, Vector{-1, 0}, positionList, bounds) {
+	if tempPos := position.Add(Vector{-1, 0}); tempPos.x >= 0 && !tempPos.inList(borders) && !tempPos.inList(nonBorders) && isBorderPosition(tempPos, positionList, bounds) {
 		return Vector{-1, 0}
 	}
-	if tempPos := position.Add(Vector{0, 1}); tempPos.y < bounds.y && !tempPos.inList(borders) && !tempPos.inList(nonBorders) && isBorderPosition(tempPos, positionList, bounds) && isGoodOriented(position, Vector{0, 1}, positionList, bounds) {
+	if tempPos := position.Add(Vector{0, 1}); tempPos.y < bounds.y && !tempPos.inList(borders) && !tempPos.inList(nonBorders) && isBorderPosition(tempPos, positionList, bounds) {
 		return Vector{0, 1}
 	}
-	if tempPos := position.Add(Vector{0, -1}); tempPos.y >= 0 && !tempPos.inList(borders) && !tempPos.inList(nonBorders) && isBorderPosition(tempPos, positionList, bounds) && isGoodOriented(position, Vector{0, -1}, positionList, bounds) {
+	if tempPos := position.Add(Vector{0, -1}); tempPos.y >= 0 && !tempPos.inList(borders) && !tempPos.inList(nonBorders) && isBorderPosition(tempPos, positionList, bounds) {
 		return Vector{0, -1}
 	}
 	panic("WHAT")
+}
+
+func isPositiveWalk(region [][]bool, position Vector, direction Vector, bounds Vector) bool {
+	emptyDirectionPositive := direction.Rotate()
+	emptyPosition := position.Add(emptyDirectionPositive)
+	if checkInBounds(emptyPosition, bounds) && !region[emptyPosition.x][emptyPosition.y] {
+		return false
+	} else {
+		return true
+	}
 }
 
 func calcSides(region [][]bool, bounds [2]int) int {
@@ -182,7 +205,7 @@ func calcSides(region [][]bool, bounds [2]int) int {
 		bordersVisited = append(bordersVisited, vec)
 	}
 	isValidPosition := func(vec Vector) bool {
-		return checkInBounds(vec, boundsVec) && region[vec.x][vec.y] && !vec.inList(bordersVisited) && !vec.inList(nonBordersVisited) && isBorderPosition(vec, positionList, boundsVec)
+		return checkInBounds(vec, boundsVec) && region[vec.x][vec.y]
 	}
 	for _, position := range positionList {
 		isBorderVisited := position.inList(bordersVisited)
@@ -190,7 +213,8 @@ func calcSides(region [][]bool, bounds [2]int) int {
 		if !isBorderVisited && !isNonBorderVisited {
 			if isBorderPosition(position, positionList, boundsVec) {
 				initalDirection := findNewBorderDirection(positionList, position, boundsVec, bordersVisited, nonBordersVisited)
-				walkBorder(position, initalDirection, isValidPosition, onWalkCallback, onChangeSideCallback)
+				isPositive := isPositiveWalk(region, position, initalDirection, boundsVec)
+				walkBorder(position, initalDirection, isValidPosition, isPositive, onWalkCallback, onChangeSideCallback)
 			} else {
 				nonBordersVisited = append(nonBordersVisited, position)
 			}
