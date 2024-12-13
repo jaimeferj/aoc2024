@@ -102,130 +102,58 @@ func (X Vector) inList(vecList []Vector) bool {
 
 }
 
-func isBorderPosition(position Vector, positionList []Vector, bounds Vector) bool {
-	i, j := position.x, position.y
-	if (i+1 < bounds.x && !(Vector{i + 1, j}.inList(positionList))) || (i-1 > 0 && !(Vector{i - 1, j}.inList(positionList))) || (j+1 < bounds.y && !(Vector{i, j + 1}.inList(positionList))) || (j-1 > 0 && !(Vector{i, j - 1}.inList(positionList)) || i-1 < 0 || j-1 < 0 || i+1 >= bounds.x || j+1 >= bounds.y) {
-		return true
+func countNeighbours(vertex Vector, centers [][]bool, bounds Vector) int {
+	count := 0
+	if vec := vertex.Add(Vector{0, 0}); checkInBounds(vec, bounds) && centers[vec.x][vec.y] {
+		count++
+	}
+	if vec := vertex.Add(Vector{-1, 0}); checkInBounds(vec, bounds) && centers[vec.x][vec.y] {
+		count++
+	}
+	if vec := vertex.Add(Vector{0, -1}); checkInBounds(vec, bounds) && centers[vec.x][vec.y] {
+		count++
+	}
+	if vec := vertex.Add(Vector{-1, -1}); checkInBounds(vec, bounds) && centers[vec.x][vec.y] {
+		count++
+	}
+	return count
+}
+
+func isDiagonalNeighbour(vertex Vector, centers [][]bool, bounds Vector) bool {
+	if vec := vertex.Add(Vector{0, 0}); checkInBounds(vec, bounds) && centers[vec.x][vec.y] {
+		if vec := vertex.Add(Vector{-1, -1}); checkInBounds(vec, bounds) && centers[vec.x][vec.y] {
+			return true
+		}
+	}
+	if vec := vertex.Add(Vector{-1, 0}); checkInBounds(vec, bounds) && centers[vec.x][vec.y] {
+		if vec := vertex.Add(Vector{0, -1}); checkInBounds(vec, bounds) && centers[vec.x][vec.y] {
+			return true
+		}
 	}
 	return false
 }
 
-func walkBorder(initialPosition Vector, initialDirection Vector, isValidPosition func(Vector) bool, steerOrientationPositive bool, onWalkCallback func(Vector), onSteerCallback func(Vector)) {
-	onWalkCallback(initialPosition)
-	currentDirection := initialDirection
-	currentPosition := initialPosition
-	if steerOrientationPositive {
-		for {
-			if leftPos := currentPosition.Add(currentDirection.Rotate()); isValidPosition(leftPos) {
-				currentDirection = currentDirection.Rotate()
-				currentPosition = leftPos
-				onSteerCallback(currentPosition)
-			} else if frontPos := currentPosition.Add(currentDirection); isValidPosition(frontPos) {
-				currentPosition = frontPos
-			} else if rightPost := currentPosition.Add(currentDirection.RotateInverse()); isValidPosition(rightPost) {
-				currentDirection = currentDirection.RotateInverse()
-				currentPosition = rightPost
-				onSteerCallback(currentPosition)
-			} else {
-				break
-			}
-			if currentPosition.Equals(initialPosition) {
-				break
-			}
-			onWalkCallback(currentPosition)
-		}
-
-	} else {
-		for {
-			if leftPos := currentPosition.Add(currentDirection.RotateInverse()); isValidPosition(leftPos) {
-				currentDirection = currentDirection.RotateInverse()
-				currentPosition = leftPos
-				onSteerCallback(currentPosition)
-			} else if frontPos := currentPosition.Add(currentDirection); isValidPosition(frontPos) {
-				currentPosition = frontPos
-			} else if rightPost := currentPosition.Add(currentDirection.Rotate()); isValidPosition(rightPost) {
-				currentDirection = currentDirection.Rotate()
-				currentPosition = rightPost
-				onSteerCallback(currentPosition)
-			} else {
-				break
-			}
-			if currentPosition.Equals(initialPosition) {
-				break
-			}
-			onWalkCallback(currentPosition)
-		}
-	}
-}
-
-func findNewBorderDirection(positionList []Vector, position Vector, bounds Vector, borders []Vector, nonBorders []Vector) Vector {
-	if tempPos := position.Add(Vector{1, 0}); tempPos.x < bounds.x && !tempPos.inList(borders) && !tempPos.inList(nonBorders) && isBorderPosition(tempPos, positionList, bounds) {
-		return Vector{1, 0}
-	}
-	if tempPos := position.Add(Vector{-1, 0}); tempPos.x >= 0 && !tempPos.inList(borders) && !tempPos.inList(nonBorders) && isBorderPosition(tempPos, positionList, bounds) {
-		return Vector{-1, 0}
-	}
-	if tempPos := position.Add(Vector{0, 1}); tempPos.y < bounds.y && !tempPos.inList(borders) && !tempPos.inList(nonBorders) && isBorderPosition(tempPos, positionList, bounds) {
-		return Vector{0, 1}
-	}
-	if tempPos := position.Add(Vector{0, -1}); tempPos.y >= 0 && !tempPos.inList(borders) && !tempPos.inList(nonBorders) && isBorderPosition(tempPos, positionList, bounds) {
-		return Vector{0, -1}
-	}
-	panic("WHAT")
-}
-
-func isPositiveWalk(region [][]bool, position Vector, direction Vector, bounds Vector) bool {
-	emptyDirectionPositive := direction.Rotate()
-	emptyPosition := position.Add(emptyDirectionPositive)
-	if checkInBounds(emptyPosition, bounds) && !region[emptyPosition.x][emptyPosition.y] {
-		return false
-	} else {
-		return true
-	}
-}
-
-func calcSides(region [][]bool, bounds [2]int) int {
+func calcSides(regionVertex [][]bool, regionCenters [][]bool, centerBounds [2]int) int {
 	sides := 0
-	bordersVisited := make([]Vector, 0)
-	nonBordersVisited := make([]Vector, 0)
-	positionList := make([]Vector, 0)
-	boundsVec := Vector{bounds[0], bounds[1]}
-	for i, row := range region {
+	boundsVec := Vector{centerBounds[0], centerBounds[1]}
+	for i, row := range regionVertex {
 		for j, val := range row {
 			if val {
 				valVec := Vector{i, j}
-				positionList = append(positionList, valVec)
+				neighbours := countNeighbours(valVec, regionCenters, boundsVec)
+				if neighbours%2 != 0 {
+					sides++
+				} else if neighbours == 2 && isDiagonalNeighbour(valVec, regionCenters, boundsVec) {
+					sides += 2
+				}
 			}
 		}
-	}
-	onChangeSideCallback := func(vec Vector) {
-		sides++
-	}
-	onWalkCallback := func(vec Vector) {
-		bordersVisited = append(bordersVisited, vec)
-	}
-	isValidPosition := func(vec Vector) bool {
-		return checkInBounds(vec, boundsVec) && region[vec.x][vec.y]
-	}
-	for _, position := range positionList {
-		isBorderVisited := position.inList(bordersVisited)
-		isNonBorderVisited := position.inList(nonBordersVisited)
-		if !isBorderVisited && !isNonBorderVisited {
-			if isBorderPosition(position, positionList, boundsVec) {
-				initalDirection := findNewBorderDirection(positionList, position, boundsVec, bordersVisited, nonBordersVisited)
-				isPositive := isPositiveWalk(region, position, initalDirection, boundsVec)
-				walkBorder(position, initalDirection, isValidPosition, isPositive, onWalkCallback, onChangeSideCallback)
-			} else {
-				nonBordersVisited = append(nonBordersVisited, position)
-			}
-		}
-
 	}
 	return sides
 }
 
 func main() {
-	file, err := os.Open("test")
+	file, err := os.Open("input")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -254,7 +182,6 @@ func main() {
 	}
 
 	bounds := [2]int{gameHeight, gameWidth}
-	vertexBounds := [2]int{gameHeight*2 - 1, gameWidth*2 - 1}
 	visitedPositions := make([][]bool, gameHeight)
 	for i := range gameHeight {
 		visitedPositions[i] = make([]bool, gameWidth)
@@ -267,32 +194,25 @@ func main() {
 	for i := range gameHeight {
 		for j := range gameWidth {
 			if !visitedPositions[i][j] {
-				region := make([][]bool, gameHeight*2-1)
-				for i := range gameHeight*2 - 1 {
-					region[i] = make([]bool, gameWidth*2-1)
+				regionVertex := make([][]bool, gameHeight+1)
+				for i := range gameHeight + 1 {
+					regionVertex[i] = make([]bool, gameWidth+1)
+				}
+				regionCenters := make([][]bool, gameHeight)
+				for i := range gameHeight {
+					regionCenters[i] = make([]bool, gameWidth)
 				}
 				onVisit := func(i int, j int) {
-					if i*2 >= 0 {
-						if j*2+1 < gameWidth*2-1 {
-							region[i*2][j*2+1] = true
-						}
-						if j*2 >= 0 {
-							region[i*2][j*2] = true
-						}
-					}
-					if i*2+1 < gameHeight*2-1 {
-						if j*2+1 < gameWidth*2-1 {
-							region[i*2+1][j*2+1] = true
-						}
-						if j*2 >= 0 {
-							region[i*2+1][j*2] = true
-						}
-					}
+					regionCenters[i][j] = true
+					regionVertex[i][j] = true
+					regionVertex[i][j+1] = true
+					regionVertex[i+1][j] = true
+					regionVertex[i+1][j+1] = true
 				}
 				result := walk(gameMap, bounds, i, j, visitedPositions, onVisit)
 				area, perimeter := result[0], result[1]
 				totalCost += area * perimeter
-				sides := calcSides(region, vertexBounds)
+				sides := calcSides(regionVertex, regionCenters, bounds)
 				totalCost2 += sides * area
 				uuidRegion++
 			}
