@@ -6,7 +6,7 @@ import (
 )
 
 func TestCalculateRegionSides(t *testing.T) {
-	bounds := [2]int{3, 3}
+	bounds := [2]int{6, 6}
 	tests := []struct {
 		name     string
 		grid     [][]bool
@@ -15,36 +15,72 @@ func TestCalculateRegionSides(t *testing.T) {
 		{
 			name: "Single cell region",
 			grid: [][]bool{
-				{true, false, false},
-				{false, false, false},
-				{false, false, false},
+				{true, true, false, false, false, false},
+				{true, true, false, false, false, false},
+				{false, false, false, false, false, false},
+				{false, false, false, false, false, false},
+				{false, false, false, false, false, false},
+				{false, false, false, false, false, false},
 			},
 			expected: 4, // Single cell region.
 		},
 		{
-			name: "Rectangle region",
-			grid: [][]bool{
-				{true, true, false},
-				{true, true, false},
-				{false, false, false},
-			},
-			expected: 4,
-		},
-		{
 			name: "L-shaped region",
 			grid: [][]bool{
-				{true, true, false},
-				{true, false, false},
-				{true, false, false},
+				{true, true, false, false, false, false},
+				{true, true, false, false, false, false},
+				{true, true, true, true, false, false},
+				{true, true, true, true, false, false},
+				{false, false, false, false, false, false},
+				{false, false, false, false, false, false},
 			},
 			expected: 6,
 		},
 		{
 			name: "Irregular region",
 			grid: [][]bool{
-				{true, true, false},
-				{true, true, true},
-				{false, true, true},
+				{true, true, false, false, false, false},
+				{true, true, false, false, false, false},
+				{true, true, true, true, false, false},
+				{true, true, true, true, false, false},
+				{false, false, true, true, false, false},
+				{false, false, true, true, false, false},
+			},
+			expected: 8,
+		},
+		{
+			name: "Central Space",
+			grid: [][]bool{
+				{true, true, true, true, true, true},
+				{true, true, true, true, true, true},
+				{true, true, false, false, true, true},
+				{true, true, false, false, true, true},
+				{true, true, true, true, true, true},
+				{true, true, true, true, true, true},
+			},
+			expected: 8,
+		},
+		{
+			name: "Spike",
+			grid: [][]bool{
+				{false, false, true, true, false, false},
+				{false, false, true, true, false, false},
+				{true, true, true, true, true, true},
+				{true, true, true, true, true, true},
+				{true, true, true, true, true, true},
+				{true, true, true, true, true, true},
+			},
+			expected: 8,
+		},
+		{
+			name: "Spike2",
+			grid: [][]bool{
+				{true, true, true, true, true, true},
+				{true, true, true, true, true, true},
+				{true, true, true, true, true, true},
+				{true, true, true, true, true, true},
+				{false, false, true, true, false, false},
+				{false, false, true, true, false, false},
 			},
 			expected: 8,
 		},

@@ -92,83 +92,116 @@ func (X Vector) RotateInverse() Vector {
 	return Vector{X.y, -X.x}
 }
 
+func (X Vector) inList(vecList []Vector) bool {
+	for _, pos := range vecList {
+		if X.x == pos.x && X.y == pos.y {
+			return true
+		}
+	}
+	return false
+
+}
+
+func isBorderPosition(position Vector, positionList []Vector, bounds Vector) bool {
+	i, j := position.x, position.y
+	if (i+1 < bounds.x && !(Vector{i + 1, j}.inList(positionList))) || (i-1 > 0 && !(Vector{i - 1, j}.inList(positionList))) || (j+1 < bounds.y && !(Vector{i, j + 1}.inList(positionList))) || (j-1 > 0 && !(Vector{i, j - 1}.inList(positionList)) || i-1 < 0 || j-1 < 0 || i+1 >= bounds.x || j+1 >= bounds.y) {
+		return true
+	}
+	return false
+}
+
+func walkBorder(initialPosition Vector, initialDirection Vector, isValidPosition func(Vector) bool, onWalkCallback func(Vector), onSteerCallback func(Vector)) {
+	onWalkCallback(initialPosition)
+	currentDirection := initialDirection
+	currentPosition := initialPosition
+	for {
+		if leftPos := currentPosition.Add(currentDirection.Rotate()); isValidPosition(leftPos) {
+			currentDirection = currentDirection.Rotate()
+			currentPosition = leftPos
+			onSteerCallback(currentPosition)
+		} else if frontPos := currentPosition.Add(currentDirection); isValidPosition(frontPos) {
+			currentPosition = frontPos
+		} else if rightPost := currentPosition.Add(currentDirection.RotateInverse()); isValidPosition(rightPost) {
+			currentDirection = currentDirection.RotateInverse()
+			currentPosition = rightPost
+			onSteerCallback(currentPosition)
+		} else {
+			break
+		}
+		if currentPosition.Equals(initialPosition) {
+			break
+		}
+		onWalkCallback(currentPosition)
+	}
+}
+
+func isGoodOriented(position Vector, direction Vector, positionList []Vector, bounds Vector) bool {
+	emptyDirection := direction.Rotate()
+	emptyPosition := position.Add(emptyDirection)
+	if emptyPosition.x < 0 || emptyDirection.y < 0 || emptyPosition.x >= bounds.x || emptyPosition.y >= bounds.y || !emptyDirection.inList(positionList) {
+		return true
+	} else {
+		return false
+	}
+}
+
+func findNewBorderDirection(positionList []Vector, position Vector, bounds Vector, borders []Vector, nonBorders []Vector) Vector {
+	if tempPos := position.Add(Vector{1, 0}); tempPos.x < bounds.x && !tempPos.inList(borders) && !tempPos.inList(nonBorders) && isBorderPosition(tempPos, positionList, bounds) && isGoodOriented(position, Vector{1, 0}, positionList, bounds) {
+		return Vector{1, 0}
+	}
+	if tempPos := position.Add(Vector{-1, 0}); tempPos.x >= 0 && !tempPos.inList(borders) && !tempPos.inList(nonBorders) && isBorderPosition(tempPos, positionList, bounds) && isGoodOriented(position, Vector{-1, 0}, positionList, bounds) {
+		return Vector{-1, 0}
+	}
+	if tempPos := position.Add(Vector{0, 1}); tempPos.y < bounds.y && !tempPos.inList(borders) && !tempPos.inList(nonBorders) && isBorderPosition(tempPos, positionList, bounds) && isGoodOriented(position, Vector{0, 1}, positionList, bounds) {
+		return Vector{0, 1}
+	}
+	if tempPos := position.Add(Vector{0, -1}); tempPos.y >= 0 && !tempPos.inList(borders) && !tempPos.inList(nonBorders) && isBorderPosition(tempPos, positionList, bounds) && isGoodOriented(position, Vector{0, -1}, positionList, bounds) {
+		return Vector{0, -1}
+	}
+	panic("WHAT")
+}
+
 func calcSides(region [][]bool, bounds [2]int) int {
 	sides := 0
-	initialPosition := Vector{}
-out:
+	bordersVisited := make([]Vector, 0)
+	nonBordersVisited := make([]Vector, 0)
+	positionList := make([]Vector, 0)
+	boundsVec := Vector{bounds[0], bounds[1]}
 	for i, row := range region {
 		for j, val := range row {
 			if val {
-				initialPosition = Vector{i, j}
-				break out
+				valVec := Vector{i, j}
+				positionList = append(positionList, valVec)
 			}
 		}
 	}
-	// Calculate initialDirection
-	occList := make([]Vector, 0)
-	i := initialPosition.x
-	j := initialPosition.y
-	if i+1 < bounds[0] {
-		if region[i+1][j] {
-			occList = append(occList, Vector{i + 1, j})
-		}
+	onChangeSideCallback := func(vec Vector) {
+		sides++
 	}
-	if j+1 < bounds[1] {
-		if region[i][j+1] {
-			occList = append(occList, Vector{i, j + 1})
-		}
-
+	onWalkCallback := func(vec Vector) {
+		bordersVisited = append(bordersVisited, vec)
 	}
-	if i-1 >= 0 {
-		if region[i-1][j] {
-			occList = append(occList, Vector{i - 1, j})
-		}
+	isValidPosition := func(vec Vector) bool {
+		return checkInBounds(vec, boundsVec) && region[vec.x][vec.y] && !vec.inList(bordersVisited) && !vec.inList(nonBordersVisited) && isBorderPosition(vec, positionList, boundsVec)
 	}
-	if j-1 >= 0 {
-		if region[i][j-1] {
-			occList = append(occList, Vector{i, j - 1})
-		}
-	}
-	if len(occList) == 0 {
-		return 4
-	}
-
-	firstDirection := occList[0].Add(initialPosition.Revert())
-	downDirection := Vector{}
-	if len(occList) == 1 {
-		downDirection = firstDirection.Rotate()
-	} else {
-		downDirection = occList[1].Add(initialPosition.Revert())
-	}
-
-	currentDirection := firstDirection
-	currentPosition := initialPosition
-	boundsVec := Vector{bounds[0], bounds[1]}
-	// TODO: It is easier if we convert from the center of the squares to a vertex approximation!
-	for {
-		nextPosition := currentPosition.Add(currentDirection)
-		if nextPosition.Equals(initialPosition) {
-			break
-		}
-		if !checkInBounds(nextPosition, boundsVec) || !region[nextPosition.x][nextPosition.y] {
-			newDownDirection := Vector{}
-			if currentDirection.Orientation(downDirection) == 1 {
-				newDownDirection = downDirection.Rotate()
+	for _, position := range positionList {
+		isBorderVisited := position.inList(bordersVisited)
+		isNonBorderVisited := position.inList(nonBordersVisited)
+		if !isBorderVisited && !isNonBorderVisited {
+			if isBorderPosition(position, positionList, boundsVec) {
+				initalDirection := findNewBorderDirection(positionList, position, boundsVec, bordersVisited, nonBordersVisited)
+				walkBorder(position, initalDirection, isValidPosition, onWalkCallback, onChangeSideCallback)
 			} else {
-				newDownDirection = downDirection.RotateInverse()
+				nonBordersVisited = append(nonBordersVisited, position)
 			}
-			currentDirection = downDirection
-			downDirection = newDownDirection
-			sides++
-			continue
 		}
-		currentPosition = nextPosition
+
 	}
 	return sides
 }
 
 func main() {
-	file, err := os.Open("input")
+	file, err := os.Open("test")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -197,30 +230,51 @@ func main() {
 	}
 
 	bounds := [2]int{gameHeight, gameWidth}
+	vertexBounds := [2]int{gameHeight*2 - 1, gameWidth*2 - 1}
 	visitedPositions := make([][]bool, gameHeight)
 	for i := range gameHeight {
 		visitedPositions[i] = make([]bool, gameWidth)
 	}
 
 	totalCost := 0
+	totalCost2 := 0
 	uuidRegion := 0
 
 	for i := range gameHeight {
 		for j := range gameWidth {
 			if !visitedPositions[i][j] {
-				region := make([][]bool, gameHeight)
-				for range gameHeight {
-					region = append(region, make([]bool, gameWidth))
+				region := make([][]bool, gameHeight*2-1)
+				for i := range gameHeight*2 - 1 {
+					region[i] = make([]bool, gameWidth*2-1)
 				}
 				onVisit := func(i int, j int) {
-					region[i][j] = true
+					if i*2 >= 0 {
+						if j*2+1 < gameWidth*2-1 {
+							region[i*2][j*2+1] = true
+						}
+						if j*2 >= 0 {
+							region[i*2][j*2] = true
+						}
+					}
+					if i*2+1 < gameHeight*2-1 {
+						if j*2+1 < gameWidth*2-1 {
+							region[i*2+1][j*2+1] = true
+						}
+						if j*2 >= 0 {
+							region[i*2+1][j*2] = true
+						}
+					}
 				}
 				result := walk(gameMap, bounds, i, j, visitedPositions, onVisit)
-				totalCost += result[0] * result[1]
+				area, perimeter := result[0], result[1]
+				totalCost += area * perimeter
+				sides := calcSides(region, vertexBounds)
+				totalCost2 += sides * area
 				uuidRegion++
 			}
 		}
 	}
 	fmt.Println(totalCost)
+	fmt.Println(totalCost2)
 
 }
