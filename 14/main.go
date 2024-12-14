@@ -9,6 +9,21 @@ import (
 	"strings"
 )
 
+func displayGrid(grid [][]bool) {
+	height := len(grid)
+	width := len(grid[0])
+	for j := range width {
+		for i := range height {
+			if grid[i][j] {
+				fmt.Printf("x")
+			} else {
+				fmt.Printf(".")
+			}
+		}
+		fmt.Println()
+	}
+}
+
 func main() {
 	file, err := os.Open("input")
 	if err != nil {
@@ -49,18 +64,18 @@ func main() {
 	// visitedTiles := make(map[Vector]bool)
 
 	for i := range positions {
-		positions[i] = positions[i].Add(velocities[i].times(time)).Mod(bounds)
-		// if visitedTiles[positions[i]] || positions[i].x == (bounds.x-1)/2 || positions[i].y == (bounds.y-1)/2 {
-		if positions[i].x == (bounds.x-1)/2 || positions[i].y == (bounds.y-1)/2 {
+		newPosition := positions[i].Add(velocities[i].times(time)).Mod(bounds)
+		// if visitedTiles[newPosition] || newPosition.x == (bounds.x-1)/2 || newPosition.y == (bounds.y-1)/2 {
+		if newPosition.x == (bounds.x-1)/2 || newPosition.y == (bounds.y-1)/2 {
 			continue
 		}
-		// visitedTiles[positions[i]] = true
+		// visitedTiles[newPosition] = true
 
 		cuadrant := 0
-		if positions[i].x*2/bounds.x == 1 {
+		if newPosition.x*2/bounds.x == 1 {
 			cuadrant++
 		}
-		if positions[i].y*2/bounds.y == 1 {
+		if newPosition.y*2/bounds.y == 1 {
 			cuadrant += 2
 		}
 		cuadrantsCount[cuadrant]++
@@ -72,4 +87,29 @@ func main() {
 	fmt.Println(cuadrantsCount)
 	fmt.Println(xCuadrants)
 
+	//Part 2
+
+	time = 1
+out:
+	for {
+		visitedTiles := make([][]bool, bounds.x)
+		for i := range bounds.x {
+			visitedTiles[i] = make([]bool, bounds.y)
+		}
+		for i := range positions {
+			newPosition := positions[i].Add(velocities[i].times(time)).Mod(bounds)
+			// if visitedTiles[newPosition] || newPosition.x == (bounds.x-1)/2 || newPosition.y == (bounds.y-1)/2 {
+			visitedTiles[newPosition.x][newPosition.y] = true
+		}
+		for i := range bounds.x - 2 {
+			for j := range bounds.y - 2 {
+				if visitedTiles[i][j] && visitedTiles[i+1][j] && visitedTiles[i+2][j] && visitedTiles[i][j+1] && visitedTiles[i+1][j+1] && visitedTiles[i+2][j+1] && visitedTiles[i][j+2] && visitedTiles[i+1][j+2] && visitedTiles[i+2][j+2] {
+					displayGrid(visitedTiles)
+					break out
+				}
+			}
+		}
+		time++
+	}
+	fmt.Println(time)
 }
